@@ -53,19 +53,19 @@ async function checkLoggedIn(page) {
     return false;
 }
 
-async function goToDepositPage(page) {
+async function goToTransactionPage(page, type = 'deposit') {
     const isLoggedIn = await checkLoggedIn(page);
     if (!isLoggedIn) {
-        await waitForLogin(page);   
+        await waitForLogin(page);
     }
-    await page.goto(url + 'transactions/instant_transaction/deposit_only', { timeout: 5000 });
-    if (page.url().includes('deposit_only')) {
-        console.log('inside deposit page');
+    await page.goto(url + 'transactions/instant_transaction/' + type + '_only', { timeout: 5000 });
+    if (page.url().includes(type + '_only')) {
+        console.log('inside ' + type + ' page');
     }
 }
 
-async function getDepositTransactions(page) {
-    console.log('getting deposit transactions ...');
+async function getTransactions(page, type = 'deposit') {
+    console.log('getting ' + type + ' transactions ...');
     await page.waitForTimeout(3000);
     const table = await page.locator("#DataTables_Table_0");
     // console.log("table count: " + await table.count());
@@ -79,21 +79,21 @@ async function getDepositTransactions(page) {
         const row = rows.nth(i);
         const tds = await row.locator("td");
 
-        const txID = await tds.nth(2).textContent().trim();
-        const txAccount = await tds.nth(3).textContent().trim();
-        const txUsername = await tds.nth(4).textContent().trim().replace(/\s+/g, "").replace("FirstTime", "");
-        const txMethod = await tds.nth(6).textContent().trim();
-        const txStatus = await tds.nth(8).textContent().trim();
-        const txAmount = await tds.nth(11).textContent().trim().replace(",", "").replace(".00", "");
+        const txID = await tds.nth(2).textContent();
+        const txAccount = await tds.nth(3).textContent();
+        const txUsername = await tds.nth(4).textContent();
+        const txMethod = await tds.nth(6).textContent();
+        const txStatus = await tds.nth(8).textContent();
+        const txAmount = await tds.nth(type == 'deposit' ? 11 : 10).textContent();
 
-        if (txStatus.includes("In Progress") && (txMethod.includes('E-wallet') || txMethod.includes('Bank'))) {
+        if (txMethod.includes('E-wallet') || txMethod.includes('Bank')) {
             const rowData = {
-                'id': txID,
-                'account': txAccount,
-                'username': txUsername,
-                'method': txMethod,
-                'status': txStatus,
-                'amount': txAmount,
+                'id': txID.trim(),
+                'account': txAccount.trim(),
+                'username': txUsername.trim().replace(/\s+/g, "").replace("FirstTime", ""),
+                'method': txMethod.trim(),
+                'status': txStatus.trim(),
+                'amount': txAmount.trim().replace(/\s+/g, "").replace(",", "").replace(".00", ""),
             };
             tableData.push(rowData);
         }
@@ -111,8 +111,10 @@ async function getDepositTransactions(page) {
         console.log('setting up cronjob');
         let job = new cronjob('*/30 * * * * *', async function() {
             console.log('going to deposit page')
-            await goToDepositPage(page);
-            await getDepositTransactions(page);
+            await goToTransactionPage(page, 'deposit');
+            await getTransactions(page, 'deposit');
+            await goToTransactionPage(page, 'withdraw');
+            await getTransactions(page, 'withdraw');
         }, null, true, 'Asia/Jakarta');
         
         job.start();
