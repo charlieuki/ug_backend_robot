@@ -84,15 +84,23 @@ async function getTransactions(page, type = 'deposit') {
         const txUsername = await tds.nth(4).textContent();
         const txMethod = await tds.nth(6).textContent();
         const txStatus = await tds.nth(8).textContent();
-        const txAmount = await tds.nth(type == 'deposit' ? 11 : 10).textContent();
+        let txAmount = 0;
+
+        if (type == 'deposit') {
+            txAmount = await tds.nth(11).textContent();    
+        } else {
+            const colAmount = await tds.nth(10);
+            const colAmountSpans = await colAmount.locator("span");
+            txAmount = await colAmountSpans.nth(0).textContent();
+        }
 
         if (txMethod.includes('E-wallet') || txMethod.includes('Bank')) {
             const rowData = {
                 'id': txID.trim(),
-                'account': txAccount.trim(),
+                'account': txAccount.trim().replace(/^\s+|\s+$/g, "").replace(/\s+/g, " "),
                 'username': txUsername.trim().replace(/\s+/g, "").replace("FirstTime", ""),
                 'method': txMethod.trim(),
-                'status': txStatus.trim(),
+                'status': txStatus.trim().replace(/^\s+|\s+$/g, "").replace(/\s+/g, " "),
                 'amount': txAmount.trim().replace(/\s+/g, "").replace(",", "").replace(".00", ""),
             };
             tableData.push(rowData);
