@@ -3,12 +3,14 @@ const path = require('path');
 const dotenv = require('dotenv').config();
 const { chromium } = require('playwright');
 const cronjob = require('cron').CronJob;
+const axios = require('axios');
 
 // Init
 const delay = (process.env.TIMEOUT_SECONDS || 10) * 1000;
 const url = 'https://' + (process.env.ADMIN_PANEL_URL || 'www.google.com') + '/';
 const username = process.env.ADMIN_PANEL_USERNAME || 'username';
 const password = process.env.ADMIN_PANEL_PASSWORD || 'password';
+const baseAPIUrl = process.env.P24_API_URL || 'www.google.com';
 
 const browserOptions = {
     headless: false,
@@ -102,11 +104,29 @@ async function getTransactions(page, type = 'deposit') {
                 'method': txMethod.trim(),
                 'status': txStatus.trim().replace(/^\s+|\s+$/g, "").replace(/\s+/g, " "),
                 'amount': txAmount.trim().replace(/\s+/g, "").replace(",", "").replace(".00", ""),
+                'type': type
             };
             tableData.push(rowData);
         }
     }
+
     console.log("tableData:", tableData);
+
+    await sendTransactionData(tableData);
+}
+
+async function sendTransactionData(data) {
+    const apiUrl = baseAPIUrl + '/transaction/create';
+
+    axios.post(apiUrl, {
+        transactions: data
+    })
+    .then(function (response) {
+        console.log(response);
+    })
+    .catch(function (error) {
+        console.log(error);
+    });
 }
 
 (async () => {
