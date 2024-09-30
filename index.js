@@ -87,23 +87,42 @@ async function getTransactions(page, type = 'deposit') {
         const txMethod = await tds.nth(6).textContent();
         const txStatus = await tds.nth(8).textContent();
         let txAmount = 0;
+        let txTarget1 = '';
+        let txTarget2 = '';
 
         if (type == 'deposit') {
-            txAmount = await tds.nth(11).textContent();    
+            const colAmount = await tds.nth(11);
+            const colAmountSpans = await colAmount.locator("div");
+            const colAmountSpansCount = await colAmount.locator("div").count();
+            txAmount = await colAmountSpans.nth(colAmountSpansCount > 1 ? 1 : 0).textContent();
+            console.log('txAmount', txAmount);
+            const colTarget = await tds.nth(7);
+            const colTargetTxt = await colTarget.textContent();
+            if (colTargetTxt.trim() != '') {
+                const colTargetSpans = await colTarget.locator("div");
+                txTarget1 = await colTargetSpans.nth(0).textContent();
+                txTarget2 = await colTargetSpans.nth(1).textContent();
+                console.log('txTarget', txTarget1.trim() + ' / ' + txTarget2.trim());
+            }
         } else {
             const colAmount = await tds.nth(10);
             const colAmountSpans = await colAmount.locator("span");
             txAmount = await colAmountSpans.nth(0).textContent();
+            console.log('txAmount', txAmount);
         }
+
+        txTarget1 = txTarget1.trim();
+        txTarget2 = txTarget2.trim();
 
         if (txMethod.includes('E-wallet') || txMethod.includes('Bank')) {
             const rowData = {
-                'id': txID.trim(),
+                'tx_id': txID.trim(),
                 'account': txAccount.trim().replace(/^\s+|\s+$/g, "").replace(/\s+/g, " "),
                 'username': txUsername.trim().replace(/\s+/g, "").replace("FirstTime", ""),
                 'method': txMethod.trim(),
                 'status': txStatus.trim().replace(/^\s+|\s+$/g, "").replace(/\s+/g, " "),
                 'amount': txAmount.trim().replace(/\s+/g, "").replace(",", "").replace(".00", ""),
+                'target': (txTarget1 != '' && txTarget2 != '') ? (txTarget1.trim() + ' / ' + txTarget2.trim()) : '',
                 'type': type
             };
             tableData.push(rowData);
